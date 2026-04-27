@@ -3,7 +3,7 @@
 Universal Hidden File Finder via SSH
 Input 1: Target IP Address
 Input 2: File/Keyword to search (e.g., history, bashrc, ssh, config)
-Output: Hidden file name only (e.g., .bash_history)
+Output: Hidden file name only (REAL result only)
 """
 
 import socket
@@ -44,95 +44,66 @@ def check_ssh_port(ip, timeout=2):
         return False
 
 
+def run_ssh_command(ip, username, password, command, timeout=10):
+    try:
+        cmd = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "{command}" 2>/dev/null"""
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except:
+        pass
+    return None
+
+
 def find_hidden_file_ssh(ip, username, password, keyword):
+    # Search in home directories (fast + relevant)
+    find_cmd = f"""find /home -maxdepth 4 -type f -name ".*{keyword}*" 2>/dev/null | head -5"""
+    output = run_ssh_command(ip, username, password, find_cmd)
     
-    find_cmd = f"""find /home -maxdepth 3 -name ".*{keyword}*" -type f 2>/dev/null | head -5"""
-    
-    try:
-        cmd = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "{find_cmd}" 2>/dev/null"""
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            files = result.stdout.strip().split('\n')
-            return os.path.basename(files[0])
-        
-    except:
-        pass
-    return None
+    if output:
+        files = output.split('\n')
+        return os.path.basename(files[0])
 
-
-def list_hidden_files_ssh(ip, username, password):
-    
-    list_cmd = """ls -la /home/*/ 2>/dev/null | grep "^-.*\." | awk '{print $NF}'"""
-    
-    try:
-        cmd = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "{list_cmd}" 2>/dev/null"""
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip().split('\n')
-    except:
-        pass
-    return None
-
-
-def search_specific_user_hidden_file(ip, username, password, target_user, keyword):
-    
-    find_cmd = f"""find /home/{target_user} -maxdepth 2 -name ".*{keyword}*" -type f 2>/dev/null | head -5"""
-    
-    try:
-        cmd = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "{find_cmd}" 2>/dev/null"""
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            files = result.stdout.strip().split('\n')
-            return os.path.basename(files[0])
-        
-        find_cmd2 = f"""find /home/{target_user} -name ".*{keyword}*" -type f 2>/dev/null | head -5"""
-        cmd2 = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "{find_cmd2}" 2>/dev/null"""
-        result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=10)
-        
-        if result2.returncode == 0 and result2.stdout.strip():
-            files = result2.stdout.strip().split('\n')
-            return os.path.basename(files[0])
-            
-    except:
-        pass
     return None
 
 
 def check_common_hidden_files(ip, username, password, keyword):
-    
     common_files = {
-        'history': ['.bash_history', '.zsh_history', '.history', '.sh_history'],
-        'bashrc': ['.bashrc', '.bash_profile', '.bash_login'],
-        'ssh': ['.ssh/id_rsa', '.ssh/authorized_keys', '.ssh/config', '.ssh/known_hosts'],
-        'config': ['.config', '.gitconfig', '.vimrc', '.tmux.conf'],
-        'profile': ['.profile', '.bash_profile', '.zprofile'],
-        'password': ['.passwd', '.password', '.secret', '.credentials'],
-        'token': ['.token', '.auth', '.cred', '.key'],
-        'local': ['.local', '.cache', '.mozilla'],
-        'vim': ['.vimrc', '.viminfo', '.vim'],
-        'git': ['.gitconfig', '.git-credentials', '.gitignore']
+        'history': ['.bash_history', '.zsh_history'],
+        'bashrc': ['.bashrc', '.bash_profile'],
+        'ssh': ['.ssh/id_rsa', '.ssh/authorized_keys'],
+        'config': ['.config', '.gitconfig'],
     }
-    
+
     for cat, files in common_files.items():
-        if keyword.lower() in cat.lower() or cat.lower() in keyword.lower():
+        if keyword.lower() in cat:
             for f in files:
-                check_cmd = f"""test -f /home/*/{f} && echo "{f}" 2>/dev/null"""
-                try:
-                    cmd = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "{check_cmd}" 2>/dev/null"""
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
-                    if result.returncode == 0 and result.stdout.strip():
-                        return result.stdout.strip()
-                except:
-                    continue
+                check_cmd = f"""test -f /home/*/{f} && echo "{f}" """
+                output = run_ssh_command(ip, username, password, check_cmd)
+                if output:
+                    return output.strip()
+
+    return None
+
+
+def search_all_users(ip, username, password, keyword):
+    # FIXED: correct variable (target_ip bug removed)
+    user_list = run_ssh_command(ip, username, password, "ls /home/")
     
+    if user_list:
+        users = user_list.split('\n')
+        for user in users:
+            cmd = f"""find /home/{user} -type f -name ".*{keyword}*" 2>/dev/null | head -3"""
+            output = run_ssh_command(ip, username, password, cmd)
+            if output:
+                files = output.split('\n')
+                return os.path.basename(files[0])
+
     return None
 
 
 def main():
-    hacker_banner()  # 🔥 Added (only change)
+    hacker_banner()
 
     if len(sys.argv) >= 3:
         target_ip = sys.argv[1]
@@ -142,44 +113,38 @@ def main():
     else:
         target_ip = input("Enter Target IP: ").strip()
         keyword = input("Enter file/keyword to find (e.g., history, bashrc, ssh): ").strip()
-        
+
         if check_ssh_port(target_ip):
             username = input("Enter SSH username (default: root): ").strip() or "root"
             password = input("Enter SSH password: ").strip()
         else:
-            print("Error: SSH port 22 is not open on target")
+            print("[-] SSH port 22 is not open")
             sys.exit(1)
-    
+
     if not keyword:
-        print("Error: Please provide a keyword to search")
+        print("[-] Please provide a keyword")
         sys.exit(1)
-    
+
     result = None
-    
-    print(f"[*] Searching for hidden file matching '{keyword}'...", file=sys.stderr)
+
+    print(f"[*] Searching for '{keyword}'...", file=sys.stderr)
+
+    # Method 1
     result = find_hidden_file_ssh(target_ip, username, password, keyword)
-    
+
+    # Method 2
     if not result:
         result = check_common_hidden_files(target_ip, username, password, keyword)
-    
+
+    # Method 3
     if not result:
-        user_cmd = """ls /home/ 2>/dev/null"""
-        try:
-            cmd = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{target_ip} "{user_cmd}" 2>/dev/null"""
-            user_result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
-            if user_result.returncode == 0 and user_result.stdout.strip():
-                users = user_result.stdout.strip().split('\n')
-                for user in users:
-                    result = search_specific_user_hidden_file(target_ip, username, password, user, keyword)
-                    if result:
-                        break
-        except:
-            pass
-    
+        result = search_all_users(target_ip, username, password, keyword)
+
+    # ✅ FINAL OUTPUT (NO FAKE RESULT)
     if result:
         print(result)
     else:
-        print(f".{keyword}")
+        print("[-] No matching hidden file found")
 
 
 if __name__ == "__main__":
