@@ -4,25 +4,27 @@ target = input("Enter Target IP: ")
 
 ports = [21, 22, 80, 443, 8080]
 
-print(f"\nScanning {target}...\n")
+print(f"\n[+] Scanning {target}...\n")
 
 for port in ports:
     try:
-        s = socket.socket()
-        s.settimeout(1)
-        s.connect((target, port))
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2)
 
-        print(f"[+] Port {port} OPEN")
+        result = s.connect_ex((target, port))
 
-        try:
-            banner = s.recv(1024).decode().strip()
-            print(f"    ↳ Service Info: {banner}")
-        except:
-            print("    ↳ No banner received")
+        if result == 0:
+            print(f"[OPEN] Port {port}")
+
+            try:
+                banner = s.recv(1024).decode().strip()
+                print(f"   ↳ {banner}")
+            except:
+                print("   ↳ No banner")
 
         s.close()
 
-    except:
-        pass
+    except Exception as e:
+        print(f"[ERROR] {e}")
 
-print("\nScan Complete ✅")
+print("\n✅ Scan Complete")
