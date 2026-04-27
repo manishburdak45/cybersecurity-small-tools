@@ -28,3 +28,4 @@ for port in ports:
         print(f"[ERROR] {e}")
 
 print("\n✅ Scan Complete")
+print(f"Checking port {port}")
