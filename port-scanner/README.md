@@ -1,29 +1,12 @@
-# Cybersecurity Tools & Learning
+#  Port Scanner
 
-A collection of my cybersecurity tools, scripts, and learning notes while practicing on HTB.
+Simple Python-based port scanner with banner grabbing.
 
----
+##  Features
+- Scan common ports
+- Banner grabbing
 
-## Tools
+##  Usage
 
-###  Port Scanner
-Basic Python tool for scanning ports and grabbing banners  
- Path: /port-scanner
-
----
-
-##  Notes
-
-- Linux Basics
-- Networking Fundamentals
-- (More coming...)
-
----
-
-##  Goal
-
-To build practical cybersecurity skills and document my journey.
-
----
-
- Learning by doing, breaking, and securing systems.
+```bash
+python3 recon.py
