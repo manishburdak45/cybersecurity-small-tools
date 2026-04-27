@@ -2,25 +2,22 @@ import socket
 
 target = input("Enter Target IP: ")
 
-ports = [21, 22, 80, 443, 8080]
+# Increase port range
+ports = range(1, 1001)   # 1–1000 scan
 
 print(f"\n[+] Scanning {target}...\n")
 
 for port in ports:
+    print(f"Checking port {port}")
+
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(2)
+        s.settimeout(1)
 
         result = s.connect_ex((target, port))
 
         if result == 0:
-            print(f"[OPEN] Port {port}")
-
-            try:
-                banner = s.recv(1024).decode().strip()
-                print(f"   ↳ {banner}")
-            except:
-                print("   ↳ No banner")
+            print(f"\n[OPEN] Port {port}")
 
         s.close()
 
@@ -28,4 +25,3 @@ for port in ports:
         print(f"[ERROR] {e}")
 
 print("\n✅ Scan Complete")
-print(f"Checking port {port}")
