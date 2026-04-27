@@ -1,11 +1,29 @@
-# 🔍 Mini Recon Tool
+# 🔐 Cybersecurity Tools & Learning
 
-A beginner-friendly Python tool for basic reconnaissance.
+A collection of my cybersecurity tools, scripts, and learning notes while practicing on HTB.
 
-## ⚙️ Features
-- Port scanning
-- Basic banner grabbing
+---
 
-## 🚀 Usage
-```bash
-python3 recon.py
+## 🛠️ Tools
+
+### 🔍 Port Scanner
+Basic Python tool for scanning ports and grabbing banners  
+📂 Path: /port-scanner
+
+---
+
+## 📘 Notes
+
+- Linux Basics
+- Networking Fundamentals
+- (More coming...)
+
+---
+
+## 🚀 Goal
+
+To build practical cybersecurity skills and document my journey.
+
+---
+
+⚡ Learning by doing, breaking, and securing systems.
