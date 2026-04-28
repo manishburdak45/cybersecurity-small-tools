@@ -1,3 +1,24 @@
+# 🔥 Hacker Banner + Warning
+def hacker_banner():
+    print("\033[1;32m")
+    print(r"""
+███╗   ███╗     ██████╗██╗   ██╗██████╗ ███████╗██████╗ 
+████╗ ████║    ██╔════╝╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗
+██╔████╔██║    ██║      ╚████╔╝ ██████╔╝█████╗  ██████╔╝
+██║╚██╔╝██║    ██║       ╚██╔╝  ██╔══██╗██╔══╝  ██╔══██╗
+██║ ╚═╝ ██║    ╚██████╗   ██║   ██████╔╝███████╗██║  ██║
+╚═╝     ╚═╝     ╚═════╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝
+
+                m_cyber264
+""")
+    print("\033[0m")
+
+    print("\033[1;33m")
+    print("[!] Authorized Use Only")
+    print("[!] This tool is for educational and ethical cybersecurity purposes.")
+    print("[!] Do NOT use on systems without permission.\n")
+    print("\033[0m")
+
 #!/usr/bin/env python3
 """
 Universal Inode Number Finder via SSH
