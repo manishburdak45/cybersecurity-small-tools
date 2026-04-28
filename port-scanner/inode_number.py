@@ -22,63 +22,65 @@ def check_ssh_port(ip, timeout=2):
     except:
         return False
 
-def get_inode_via_ssh(ip, username, password, directory, filename):
-    """Get inode number of a file via SSH"""
+def run_ssh_command(ip, username, password, command):
+    """Run any command via SSH and return output"""
     try:
-        full_path = f"{directory.rstrip('/')}/{filename}"
-        
-        # Method 1: Using stat
-        cmd = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "stat -c '%i' '{full_path}' 2>/dev/null" 2>/dev/null"""
+        cmd = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "{command}" 2>/dev/null"""
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            inode = result.stdout.strip()
-            if inode.isdigit():
-                return inode
-        
-        # Method 2: Using ls -li
-        cmd2 = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "ls -li '{full_path}' 2>/dev/null | awk '{{print \\$1}}'" 2>/dev/null"""
-        result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=10)
-        
-        if result2.returncode == 0 and result2.stdout.strip():
-            inode = result2.stdout.strip()
-            if inode.isdigit():
-                return inode
-        
-        # Method 3: Using find with printf
-        cmd3 = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "find '{directory}' -name '{filename}' -printf '%i' 2>/dev/null" 2>/dev/null"""
-        result3 = subprocess.run(cmd3, shell=True, capture_output=True, text=True, timeout=10)
-        
-        if result3.returncode == 0 and result3.stdout.strip():
-            inode = result3.stdout.strip()
-            if inode.isdigit():
-                return inode
-                
-    except subprocess.TimeoutExpired:
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except:
         pass
-    except Exception as e:
-        pass
+    return None
+
+def list_directory(ip, username, password, directory):
+    """List all files in directory with inode numbers"""
+    command = f"ls -la '{directory}' 2>/dev/null"
+    return run_ssh_command(ip, username, password, command)
+
+def get_inode_number(ip, username, password, filepath):
+    """Get inode number for a specific file"""
+    # Method 1: stat
+    inode = run_ssh_command(ip, username, password, f"stat -c '%i' '{filepath}' 2>/dev/null")
+    if inode and inode.isdigit():
+        return inode
+    
+    # Method 2: ls -li
+    inode = run_ssh_command(ip, username, password, f"ls -li '{filepath}' 2>/dev/null | awk '{{print $1}}'")
+    if inode and inode.isdigit():
+        return inode
     
     return None
 
-def search_file_in_directory(ip, username, password, directory, filename):
-    """Search for file if exact path doesn't work"""
-    try:
-        cmd = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "find '{directory}' -name '{filename}' -type f 2>/dev/null | head -5" 2>/dev/null"""
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            found_path = result.stdout.strip().split('\n')[0]
-            cmd2 = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{ip} "stat -c '%i' '{found_path}' 2>/dev/null" 2>/dev/null"""
-            result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=10)
-            if result2.returncode == 0 and result2.stdout.strip():
-                inode = result2.stdout.strip()
-                if inode.isdigit():
-                    return inode, found_path
-    except:
-        pass
+def find_file_recursive(ip, username, password, directory, filename):
+    """Search for file recursively in directory"""
+    command = f"find '{directory}' -name '{filename}' -type f 2>/dev/null | head -10"
+    return run_ssh_command(ip, username, password, command)
+
+def find_file_by_pattern(ip, username, password, directory, pattern):
+    """Search for files matching pattern"""
+    command = f"find '{directory}' -name '*{pattern}*' -type f 2>/dev/null | head -20"
+    return run_ssh_command(ip, username, password, command)
+
+def search_all_backups(ip, username, password):
+    """Search for any backup-related files in common locations"""
+    commands = [
+        "ls -la /var/backups/ 2>/dev/null",
+        "ls -la /var/backups/*.bak 2>/dev/null",
+        "ls -la /var/backups/*shadow* 2>/dev/null",
+        "find /var/backups -name '*.bak' -type f 2>/dev/null | head -20",
+        "find /var -name '*shadow*' -type f 2>/dev/null | head -20",
+        "find / -name 'shadow.bak' -type f 2>/dev/null | head -10",
+        "find / -name '*.bak' -path '*/backups/*' -type f 2>/dev/null | head -20",
+    ]
     
-    return None, None
+    results = {}
+    for cmd in commands:
+        output = run_ssh_command(ip, username, password, cmd)
+        if output:
+            key = cmd.split('"')[1] if '"' in cmd else cmd[:50]
+            results[key] = output
+    return results
 
 def main():
     print("")  # Clean output
@@ -106,36 +108,66 @@ def main():
         print("Error: Please provide a filename")
         sys.exit(1)
     
-    inode = None
+    print(f"[*] Connected to {target_ip}", file=sys.stderr)
     
-    # Method 1: Direct stat/ls
-    print(f"[*] Getting inode number for {directory}/{filename}...", file=sys.stderr)
-    inode = get_inode_via_ssh(target_ip, username, password, directory, filename)
+    # Step 1: List directory contents
+    print(f"[*] Listing contents of {directory}...", file=sys.stderr)
+    dir_contents = list_directory(target_ip, username, password, directory)
+    if dir_contents:
+        print(f"[*] Directory contents:\n{dir_contents}", file=sys.stderr)
     
-    # Method 2: Try with trailing slash handled properly
+    # Step 2: Try exact path
+    exact_path = f"{directory.rstrip('/')}/{filename}"
+    print(f"[*] Checking exact path: {exact_path}", file=sys.stderr)
+    inode = get_inode_number(target_ip, username, password, exact_path)
+    
+    # Step 3: Search recursively in directory
     if not inode:
-        directory_clean = directory.rstrip('/')
-        inode = get_inode_via_ssh(target_ip, username, password, directory_clean, filename)
+        print(f"[*] Searching for '{filename}' in {directory}...", file=sys.stderr)
+        found_files = find_file_recursive(target_ip, username, password, directory, filename)
+        if found_files:
+            print(f"[*] Found files:\n{found_files}", file=sys.stderr)
+            first_file = found_files.split('\n')[0]
+            inode = get_inode_number(target_ip, username, password, first_file)
+            if inode:
+                print(f"[*] Found at: {first_file}", file=sys.stderr)
     
-    # Method 3: Search for the file if not found at exact path
+    # Step 4: Search by pattern (shadow*, *.bak, etc.)
     if not inode:
-        print(f"[*] File not found at exact path. Searching in {directory}...", file=sys.stderr)
-        inode, found_path = search_file_in_directory(target_ip, username, password, directory, filename)
-        if inode:
-            print(f"[*] Found at: {found_path}", file=sys.stderr)
+        print(f"[*] Searching by pattern '*{filename}*'...", file=sys.stderr)
+        pattern_files = find_file_by_pattern(target_ip, username, password, directory, filename.replace('.bak', '').replace('.', ''))
+        if pattern_files:
+            print(f"[*] Pattern matches:\n{pattern_files}", file=sys.stderr)
+            first_file = pattern_files.split('\n')[0]
+            inode = get_inode_number(target_ip, username, password, first_file)
+            if inode:
+                print(f"[*] Found at: {first_file}", file=sys.stderr)
+    
+    # Step 5: Broader search - anywhere in /var or root
+    if not inode:
+        print(f"[*] Searching entire system for '{filename}'...", file=sys.stderr)
+        broad_search = run_ssh_command(target_ip, username, password, f"find / -name '{filename}' -type f 2>/dev/null | head -10")
+        if broad_search:
+            print(f"[*] Found at:\n{broad_search}", file=sys.stderr)
+            first_file = broad_search.split('\n')[0]
+            inode = get_inode_number(target_ip, username, password, first_file)
+            if inode:
+                print(f"[*] Using: {first_file}", file=sys.stderr)
+    
+    # Step 6: If still not found, show all backup files
+    if not inode:
+        print(f"[*] '{filename}' not found. Searching for all backup files...", file=sys.stderr)
+        all_backups = search_all_backups(target_ip, username, password)
+        if all_backups:
+            print("[*] All backup-related findings:", file=sys.stderr)
+            for cmd_desc, output in all_backups.items():
+                if output:
+                    print(f"  [{cmd_desc[:60]}]\n  {output}\n", file=sys.stderr)
     
     # Output result
     if inode:
         print(inode)
     else:
-        # Last resort: try listing directory
-        cmd_list = f"""sshpass -p '{password}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{target_ip} "ls -la '{directory}' 2>/dev/null" 2>/dev/null"""
-        try:
-            result = subprocess.run(cmd_list, shell=True, capture_output=True, text=True, timeout=10)
-            if result.returncode == 0 and result.stdout.strip():
-                print(f"[*] Directory contents:\n{result.stdout}", file=sys.stderr)
-        except:
-            pass
         print("0")  # Fallback
 
 if __name__ == "__main__":
