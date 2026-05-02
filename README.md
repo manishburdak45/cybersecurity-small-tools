@@ -1,18 +1,18 @@
-# 🔐 Cybersecurity Tools & Learning
+#  Cybersecurity Tools & Learning
 
 A collection of my cybersecurity tools, scripts, and learning notes while practicing on HTB.
 
 ---
 
-## 🛠️ Tools
+##  Tools
 
-### 🔍 Port Scanner
+###  Port Scanner
 Basic Python tool for scanning ports and grabbing banners  
-📂 Path: /port-scanner
+Path: /port-scanner
 
 ---
 
-## 📘 Notes
+##  Notes
 
 - Linux Basics
 - Networking Fundamentals
@@ -20,7 +20,7 @@ Basic Python tool for scanning ports and grabbing banners
 
 ---
 
-## 🚀 Goal
+##  Goal
 
 To build practical cybersecurity skills and document my journey.
 
